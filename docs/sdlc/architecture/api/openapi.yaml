@@ -2,6 +2,817 @@
 openapi: 3.1.0
 info:
   title: HRMS_test
-  version: architecture-v0
+  version: architecture-v1
   description: Designed API from the approved architecture (not extracted from code).
-paths: {}
+paths:
+  /audit-logs:
+    get:
+      summary: System Admin views and filters the immutable audit log by user or date
+        range; denied to all other roles.
+      description: System Admin views and filters the immutable audit log by user
+        or date range; denied to all other roles.
+      operationId: get_audit_logs
+      parameters: []
+      responses:
+        '200':
+          description: '[ { audit entry } ]'
+      security:
+      - bearerAuth: []
+  /auth/login:
+    post:
+      summary: Authenticate with email and password; returns an opaque session token
+        in the body on success. Generic error on bad crede
+      description: Authenticate with email and password; returns an opaque session
+        token in the body on success. Generic error on bad credentials, distinct inactive-account
+        message.
+      operationId: post_auth_login
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: '{ token, user: { id, roles, must_set_password } }'
+  /auth/logout:
+    post:
+      summary: Revoke the current session token server-side so further requests require
+        sign-in.
+      description: Revoke the current session token server-side so further requests
+        require sign-in.
+      operationId: post_auth_logout
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: none (Bearer token)
+      responses:
+        '200':
+          description: '{ ok: true }'
+      security:
+      - bearerAuth: []
+  /auth/set-password:
+    post:
+      summary: Set the initial or changed password at first login; stores only a salted
+        hash.
+      description: Set the initial or changed password at first login; stores only
+        a salted hash.
+      operationId: post_auth_set_password
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ current_password?, new_password }'
+      responses:
+        '200':
+          description: '{ ok: true }'
+      security:
+      - bearerAuth: []
+  /departments:
+    post:
+      summary: HR Admin adds or renames departments; delete blocked while employees
+        assigned.
+      description: HR Admin adds or renames departments; delete blocked while employees
+        assigned.
+      operationId: post_departments
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name }'
+      responses:
+        '200':
+          description: '{ department }'
+      security:
+      - bearerAuth: []
+  /employees:
+    post:
+      summary: HR Admin creates/edits employee records including department and reporting
+        manager; rejects a non-existent or inactive m
+      description: HR Admin creates/edits employee records including department and
+        reporting manager; rejects a non-existent or inactive manager.
+      operationId: post_employees
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ full_name, department_id, reporting_manager_id }'
+      responses:
+        '200':
+          description: '{ employee }'
+      security:
+      - bearerAuth: []
+  /employees/{id}/leave-balances:
+    put:
+      summary: HR Admin sets or adjusts an employee's balance per leave type; adjustment
+        recorded in audit log.
+      description: HR Admin sets or adjusts an employee's balance per leave type;
+        adjustment recorded in audit log.
+      operationId: put_employees_id_leave_balances
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ leave_type_id, balance_days }'
+      responses:
+        '200':
+          description: '{ balance }'
+      security:
+      - bearerAuth: []
+  /holidays:
+    get:
+      summary: View the organisation holiday calendar with dates and names.
+      description: View the organisation holiday calendar with dates and names.
+      operationId: get_holidays
+      parameters: []
+      responses:
+        '200':
+          description: '[ { holiday_date, name } ]'
+      security:
+      - bearerAuth: []
+    post:
+      summary: HR Admin adds, edits or removes public holidays on the single org calendar.
+      description: HR Admin adds, edits or removes public holidays on the single org
+        calendar.
+      operationId: post_holidays
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ holiday_date, name }'
+      responses:
+        '200':
+          description: '{ holiday }'
+      security:
+      - bearerAuth: []
+  /leave-requests:
+    post:
+      summary: 'Employee applies for leave of a type and date range; rejects insufficient
+        balance or overlap, otherwise creates Pending '
+      description: Employee applies for leave of a type and date range; rejects insufficient
+        balance or overlap, otherwise creates Pending and routes to manager.
+      operationId: post_leave_requests
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ leave_type_id, start_date, end_date }'
+      responses:
+        '200':
+          description: '{ leave_request status Pending }'
+      security:
+      - bearerAuth: []
+  /leave-requests/{id}/decision:
+    post:
+      summary: Reporting Manager (or HR Admin override) approves or rejects a direct
+        report's leave with comment; approval deducts bala
+      description: Reporting Manager (or HR Admin override) approves or rejects a
+        direct report's leave with comment; approval deducts balance, rejection deducts
+        nothing; notifies.
+      operationId: post_leave_requests_id_decision
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ decision: approve|reject, comment? }'
+      responses:
+        '200':
+          description: '{ leave_request status }'
+      security:
+      - bearerAuth: []
+  /leave-types:
+    post:
+      summary: HR Admin defines leave types with entitlement and carry-over rule as
+        data.
+      description: HR Admin defines leave types with entitlement and carry-over rule
+        as data.
+      operationId: post_leave_types
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name, annual_entitlement, carry_over_limit }'
+      responses:
+        '200':
+          description: '{ leave_type }'
+      security:
+      - bearerAuth: []
+  /me/dashboard:
+    get:
+      summary: 'Personal dashboard summarising own recent timesheet status and current
+        leave balances, highlighting pending or rejected '
+      description: Personal dashboard summarising own recent timesheet status and
+        current leave balances, highlighting pending or rejected items; own data only.
+      operationId: get_me_dashboard
+      parameters: []
+      responses:
+        '200':
+          description: '{ timesheets_summary, leave_balances, highlights }'
+      security:
+      - bearerAuth: []
+  /me/leave-balances:
+    get:
+      summary: View own remaining balance per leave type, reflecting approved deductions.
+      description: View own remaining balance per leave type, reflecting approved
+        deductions.
+      operationId: get_me_leave_balances
+      parameters: []
+      responses:
+        '200':
+          description: '[ { leave_type, balance_days } ]'
+      security:
+      - bearerAuth: []
+  /me/leave-requests:
+    get:
+      summary: View own leave history with dates, type, status and approver comment.
+      description: View own leave history with dates, type, status and approver comment.
+      operationId: get_me_leave_requests
+      parameters: []
+      responses:
+        '200':
+          description: '[ { leave_request } ]'
+      security:
+      - bearerAuth: []
+  /me/notifications:
+    get:
+      summary: List own in-app notifications; served fast from cache.
+      description: List own in-app notifications; served fast from cache.
+      operationId: get_me_notifications
+      parameters: []
+      responses:
+        '200':
+          description: '[ { notification } ]'
+      security:
+      - bearerAuth: []
+  /me/profile:
+    get:
+      summary: View own employee profile including department and reporting manager.
+      description: View own employee profile including department and reporting manager.
+      operationId: get_me_profile
+      parameters: []
+      responses:
+        '200':
+          description: '{ employee profile }'
+      security:
+      - bearerAuth: []
+    patch:
+      summary: Update own permitted fields such as contact details; department and
+        reporting manager are read-only.
+      description: Update own permitted fields such as contact details; department
+        and reporting manager are read-only.
+      operationId: patch_me_profile
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ contact_phone, ... }'
+      responses:
+        '200':
+          description: '{ updated profile }'
+      security:
+      - bearerAuth: []
+  /projects:
+    post:
+      summary: Project Manager creates/maintains projects with name and status; inactive
+        projects cannot be selected for new entries.
+      description: Project Manager creates/maintains projects with name and status;
+        inactive projects cannot be selected for new entries.
+      operationId: post_projects
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name, status }'
+      responses:
+        '200':
+          description: '{ project }'
+      security:
+      - bearerAuth: []
+  /projects/{id}/assignments:
+    post:
+      summary: Project Manager assigns an employee with allocated hours to their own
+        project; denied for projects they do not own.
+      description: Project Manager assigns an employee with allocated hours to their
+        own project; denied for projects they do not own.
+      operationId: post_projects_id_assignments
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ employee_id, allocated_hours }'
+      responses:
+        '200':
+          description: '{ assignment }'
+      security:
+      - bearerAuth: []
+  /timesheets:
+    get:
+      summary: List own timesheets with current status and reviewer comment where
+        rejected.
+      description: List own timesheets with current status and reviewer comment where
+        rejected.
+      operationId: get_timesheets
+      parameters: []
+      responses:
+        '200':
+          description: '[ { timesheet } ]'
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create or update a draft timesheet with daily entries against assigned
+        projects; rejects unassigned project, negative ho
+      description: Create or update a draft timesheet with daily entries against assigned
+        projects; rejects unassigned project, negative hours or more than 24 hours
+        per day.
+      operationId: post_timesheets
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ period_start, period_end, entries: [{ project_id, work_date,
+                hours }] }'
+      responses:
+        '200':
+          description: '{ timesheet }'
+      security:
+      - bearerAuth: []
+  /timesheets/{id}/decision:
+    post:
+      summary: Reporting Manager (or HR Admin override) approves or rejects a direct
+        report's timesheet with a comment; writes audit an
+      description: Reporting Manager (or HR Admin override) approves or rejects a
+        direct report's timesheet with a comment; writes audit and notifies.
+      operationId: post_timesheets_id_decision
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ decision: approve|reject, comment? }'
+      responses:
+        '200':
+          description: '{ timesheet status }'
+      security:
+      - bearerAuth: []
+  /timesheets/{id}/submit:
+    post:
+      summary: Submit a draft timesheet; status becomes Submitted, routed to reporting
+        manager, no longer editable until decided.
+      description: Submit a draft timesheet; status becomes Submitted, routed to reporting
+        manager, no longer editable until decided.
+      operationId: post_timesheets_id_submit
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: none
+      responses:
+        '200':
+          description: '{ timesheet status Submitted }'
+      security:
+      - bearerAuth: []
+  /users:
+    post:
+      summary: HR Admin or System Admin creates a user with unique email and initial
+        details; initial password set at first login. Reje
+      description: HR Admin or System Admin creates a user with unique email and initial
+        details; initial password set at first login. Rejects duplicate email.
+      operationId: post_users
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, full_name, department_id?, reporting_manager_id?,
+                roles[] }'
+      responses:
+        '200':
+          description: '{ user }'
+      security:
+      - bearerAuth: []
+  /users/{id}/deactivate:
+    post:
+      summary: Deactivate a user so they can no longer sign in; existing sessions
+        invalidated on next request. Record retained.
+      description: Deactivate a user so they can no longer sign in; existing sessions
+        invalidated on next request. Record retained.
+      operationId: post_users_id_deactivate
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: none
+      responses:
+        '200':
+          description: '{ user marked inactive }'
+      security:
+      - bearerAuth: []
+  /users/{id}/roles:
+    patch:
+      summary: System Admin assigns or removes roles; permissions combine across assigned
+        roles.
+      description: System Admin assigns or removes roles; permissions combine across
+        assigned roles.
+      operationId: patch_users_id_roles
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ roles[] }'
+      responses:
+        '200':
+          description: '{ user with roles }'
+      security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    users:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        password_hash:
+          type: string
+        is_active:
+          type: boolean
+        must_set_password:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deactivated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - email
+      - password_hash
+      - is_active
+      - must_set_password
+      - created_at
+    roles:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      required:
+      - id
+      - name
+    user_roles:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        role_id:
+          type: string
+      required:
+      - user_id
+      - role_id
+    departments:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    employees:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        contact_phone:
+          type: string
+        department_id:
+          type: string
+          format: uuid
+        reporting_manager_id:
+          type: string
+          format: uuid
+        profile_document_key:
+          type: string
+      required:
+      - id
+      - user_id
+      - full_name
+    projects:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        project_manager_id:
+          type: string
+          format: uuid
+      required:
+      - id
+      - name
+      - status
+      - project_manager_id
+    project_assignments:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        employee_id:
+          type: string
+          format: uuid
+        allocated_hours:
+          type: number
+      required:
+      - id
+      - project_id
+      - employee_id
+    timesheets:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        employee_id:
+          type: string
+          format: uuid
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        status:
+          type: string
+        reviewer_comment:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - employee_id
+      - period_start
+      - period_end
+      - status
+    timesheet_entries:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        timesheet_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        work_date:
+          type: string
+          format: date
+        hours:
+          type: number
+      required:
+      - id
+      - timesheet_id
+      - project_id
+      - work_date
+      - hours
+    leave_types:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        annual_entitlement:
+          type: number
+        carry_over_limit:
+          type: number
+      required:
+      - id
+      - name
+      - annual_entitlement
+      - carry_over_limit
+    leave_balances:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        employee_id:
+          type: string
+          format: uuid
+        leave_type_id:
+          type: string
+          format: uuid
+        balance_days:
+          type: number
+        period_year:
+          type: integer
+      required:
+      - id
+      - employee_id
+      - leave_type_id
+      - balance_days
+      - period_year
+    leave_requests:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        employee_id:
+          type: string
+          format: uuid
+        leave_type_id:
+          type: string
+          format: uuid
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        days:
+          type: number
+        status:
+          type: string
+        approver_comment:
+          type: string
+        decided_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - employee_id
+      - leave_type_id
+      - start_date
+      - end_date
+      - days
+      - status
+    holidays:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        holiday_date:
+          type: string
+          format: date
+        name:
+          type: string
+      required:
+      - id
+      - holiday_date
+      - name
+    notifications:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        recipient_user_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        is_read:
+          type: boolean
+        email_status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - recipient_user_id
+      - message
+      - is_read
+      - email_status
+      - created_at
+    audit_logs:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_user_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+        detail:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - actor_user_id
+      - action
+      - entity_type
+      - entity_id
+      - created_at
